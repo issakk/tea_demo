@@ -57,6 +57,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			}
 
+		case "d":
+			s := m.choices[m.cursor]
+			if s != nil && s.IsDir() {
+				m.path += "\\" + s.Name()
+				m.cursor = 0
+				api.Drop(m.path)
+			}
+			fmt.Println("dropping!")
+			return m, tea.Quit
+
 		case "enter", " ":
 			_, ok := m.selected[m.cursor]
 			if ok {
@@ -98,7 +108,12 @@ var initModel = model{
 }
 
 func main() {
-	var path = "M:\\OneDrive - Liu Mi Tech\\go_project\\tea_demo"
+	param := os.Args[1]
+	fmt.Println(param)
+	var path = "C:\\Users\\Administrator\\Desktop\\zookeeper\\"
+	if param != "" {
+		path = param
+	}
 	m := initModel
 	m.path = path
 	m.stack.PushBack(path)
