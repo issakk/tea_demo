@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"os"
 	"strings"
 	"tea_demo/api"
@@ -94,7 +95,8 @@ func (m model) View() string {
 			checked = "x"
 		}
 
-		s += getString(fmt.Sprintf("%s [%s] %s-----%v \n", cursor, checked, choice.Name(), choice.IsDir()))
+		s += style.Render(getString(fmt.Sprintf("%s [%s] %s-----%v \n", cursor, checked, choice.Name(), choice.IsDir())))
+
 	}
 
 	s += "\nPress q to quit.\n"
@@ -107,7 +109,15 @@ var initModel = model{
 	stack:    list.New(),
 }
 
+var style = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("#FAFAFA")).
+	Background(lipgloss.Color("#7D56F4")).
+	PaddingTop(1).
+	PaddingLeft(1)
+
 func main() {
+
 	param := os.Args[1]
 	fmt.Println(param)
 	var path = "C:\\Users\\Administrator\\Desktop\\zookeeper\\"
