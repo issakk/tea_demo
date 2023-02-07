@@ -3,148 +3,146 @@ package main
 import (
 	"container/list"
 	"fmt"
+	"io/fs"
+	"os"
+	"strconv"
+	"tea_demo/api"
+
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"os"
-	"strings"
-	"tea_demo/api"
 )
 
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("240"))
+
 type model struct {
-	choices  []os.FileInfo
-	cursor   int
-	selected map[int]struct{}
-	path     string
-	stack    *list.List
+	table     table.Model
+	fileInfos []os.FileInfo
+	path      string
+	stack     *list.List
 }
 
-func (m model) Init() tea.Cmd {
-	return nil
-}
+func (m model) Init() tea.Cmd { return nil }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "esc":
+			if m.table.Focused() {
+				m.table.Blur()
+			} else {
+				m.table.Focus()
+			}
+		case "q", "ctrl+c":
 			return m, tea.Quit
-
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-
+		case "enter":
+			return m, tea.Batch(
+				tea.Printf("Let's go to %s!", m.table.SelectedRow()[0]),
+			)
 		case "c":
-			s := m.choices[m.cursor]
+			s := m.fileInfos[m.table.Cursor()]
 			if s != nil && s.IsDir() {
-				m.stack.PushBack(m.path)
+				m.stack.PushFront(m.path)
 				m.path += "\\" + s.Name()
-				m.choices = api.TreeFiles(m.path)
-				m.cursor = 0
+				m.fileInfos = api.TreeFiles(m.path)
+				m.table.SetCursor(0)
+				m.table.SetRows(getRows(m.fileInfos))
+			} else {
+				return m, tea.Batch(
+					tea.Printf("this is not a dir"),
+				)
 			}
-
 		case "b":
 			front := m.stack.Front()
 			if front != nil {
 				m.stack.Remove(front)
 				s := front.Value.(string)
 				m.path = s
-				m.choices = api.TreeFiles(m.path)
-				m.cursor = 0
-			}
+				m.fileInfos = api.TreeFiles(m.path)
+				m.table.SetCursor(0)
+				m.table.SetRows(getRows(m.fileInfos))
 
+			}
 		case "d":
-			s := m.choices[m.cursor]
+			s := m.fileInfos[m.table.Cursor()]
 			if s != nil && s.IsDir() {
 				m.path += "\\" + s.Name()
-				m.cursor = 0
 				api.Drop(m.path)
+				m.fileInfos = api.TreeFiles(m.path)
+				m.table.SetCursor(0)
+				m.table.SetRows(getRows(m.fileInfos))
 			}
-			fmt.Println("dropping!")
-			return m, tea.Quit
-
-		case "enter", " ":
-			_, ok := m.selected[m.cursor]
-			if ok {
-				delete(m.selected, m.cursor)
-			} else {
-				m.selected[m.cursor] = struct{}{}
-			}
+			return m, tea.Batch(
+				tea.Printf("dropped!"),
+			)
 		}
-	}
 
-	return m, nil
+	}
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
 }
 
 func (m model) View() string {
-	s := "Files:" + m.path + "\n\n"
-
-	for i, choice := range m.choices {
-		cursor := " "
-		if m.cursor == i {
-			cursor = ">"
-		}
-
-		checked := " "
-		if _, ok := m.selected[i]; ok {
-			checked = "x"
-		}
-
-		s += style.Render(getString(fmt.Sprintf("%s [%s] %s-----%v \n", cursor, checked, choice.Name(), choice.IsDir())))
-
-	}
-
-	s += "\nPress q to quit.\n"
-	return s
+	return baseStyle.Render(m.table.View()) + "\n"
 }
-
-var initModel = model{
-	choices:  []os.FileInfo{},
-	selected: make(map[int]struct{}),
-	stack:    list.New(),
-}
-
-var style = lipgloss.NewStyle().
-	Bold(true).
-	Foreground(lipgloss.Color("#FAFAFA")).
-	Background(lipgloss.Color("#7D56F4")).
-	PaddingTop(1).
-	PaddingLeft(1)
 
 func main() {
-
-	param := os.Args[1]
-	fmt.Println(param)
-	var path = "C:\\Users\\Administrator\\Desktop\\zookeeper\\"
-	if param != "" {
-		path = param
+	columns := []table.Column{
+		{Title: "Name", Width: 40},
+		{Title: "Size", Width: 20},
+		{Title: "IsDir", Width: 10},
+		{Title: "ModeTime", Width: 20},
 	}
-	m := initModel
-	m.path = path
+
+	var path = "C:\\Users\\Administrator\\Desktop\\zookeeper\\test"
+	if len(os.Args) >= 2 {
+		param := os.Args[1]
+		fmt.Println(param)
+		if param != "" {
+			path = param
+		}
+	}
+	files := api.TreeFiles(path)
+	rows := getRows(files)
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(20),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	t.SetStyles(s)
+
+	m := model{t, files, path, list.New()}
 	m.stack.PushBack(path)
-	m.choices = api.TreeFiles(path)
-	cmd := tea.NewProgram(m)
-	if _, err := cmd.Run(); err != nil {
-		fmt.Println("start failed:", err)
+	m.fileInfos = api.TreeFiles(path)
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
 }
 
-func getString(str string) string {
-	l := len(str)
-	if l < 100 {
-		builder := strings.Builder{}
-		for i := 0; i < 100-l; i++ {
-			builder.WriteString(" ")
-		}
-		return strings.ReplaceAll(str, "-----", builder.String())
+func getRows(files []fs.FileInfo) []table.Row {
+	var rows []table.Row
+	for _, file := range files {
+		row := table.Row{}
+		rows = append(rows, append(row, file.Name(), strconv.FormatInt(file.Size()/1000, 10), strconv.FormatBool(file.IsDir()), file.ModTime().Format("2006-01-02 15:04:05")))
 
-	} else {
-		return str
 	}
+	return rows
 }
