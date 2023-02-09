@@ -3,14 +3,22 @@ package main
 import (
 	"container/list"
 	"fmt"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/table"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"io/fs"
 	"os"
 	"strconv"
 	"tea_demo/api"
+	"time"
+)
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+type sessionState uint
+
+const (
+	tableView sessionState = iota
+	progressView
 )
 
 var baseStyle = lipgloss.NewStyle().
@@ -22,6 +30,8 @@ type model struct {
 	fileInfos []os.FileInfo
 	path      string
 	stack     *list.List
+	progress  progress.Model
+	state     sessionState
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -29,6 +39,10 @@ func (m model) Init() tea.Cmd { return nil }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case progress.FrameMsg:
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		return m, cmd
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
@@ -39,6 +53,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "p":
+			m.state = progressView
+			if m.progress.Percent() == 1.0 {
+				return m, tea.Quit
+			}
+
+			// Note that you can also use progress.Model.SetPercent to set the
+			// percentage value explicitly, too.
+			cmd := m.progress.IncrPercent(0.25)
+			return m, tea.Batch(tickCmd(), cmd)
+
 		case "enter":
 			return m, tea.Batch(
 				tea.Printf("Let's go to %s!", m.table.SelectedRow()[0]),
@@ -86,8 +111,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+type tickMsg time.Time
+
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second*1, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
 func (m model) View() string {
-	return baseStyle.Render(m.table.View()) + "\n"
+	if m.state == tableView {
+		return baseStyle.Render(m.table.View()) + "\n"
+	} else {
+		return baseStyle.Render(m.progress.View()) + "\n"
+	}
 }
 
 func main() {
@@ -128,7 +164,7 @@ func main() {
 		Bold(false)
 	t.SetStyles(s)
 
-	m := model{t, files, path, list.New()}
+	m := model{t, files, path, list.New(), progress.New(), tableView}
 	m.stack.PushBack(path)
 	m.fileInfos = api.TreeFiles(path)
 	if _, err := tea.NewProgram(m).Run(); err != nil {

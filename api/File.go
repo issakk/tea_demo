@@ -36,7 +36,7 @@ func TreeFiles(path string) []fs.FileInfo {
 }
 
 func Drop(path string) {
-	go copyFiles(readFiles(path), path)
+	copyFiles(readFiles(path), path)
 
 }
 
