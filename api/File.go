@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/thoas/go-funk"
+	"github.com/duke-git/lancet/v2/slice"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -21,13 +21,13 @@ var fileMap = map[string][]string{
 
 func File(path string) []string {
 	files := TreeFiles(path)
-	c := funk.Map(files, func(f fs.FileInfo) string {
+	c := slice.Map(files, func(_ int, f fs.FileInfo) string {
 		return f.Name()
 	})
 
-	op := make([]string, 0)
-	op = c.([]string)
-	return op
+	//op := make([]string, 0)
+	//op = c.([]string)
+	return c
 }
 
 func TreeFiles(path string) []fs.FileInfo {
@@ -51,7 +51,7 @@ func readFiles(path string) map[string][]fs.FileInfo {
 		split := strings.Split(name, ".")
 		s := split[len(split)-1]
 		for i2, i3 := range fileMap {
-			if funk.Contains(i3, s) {
+			if slice.Contain(i3, s) {
 				//fmt.Println(name, "是个", i2)
 				infos, ok := m[i2]
 				if !ok {
