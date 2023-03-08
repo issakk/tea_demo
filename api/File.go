@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/duke-git/lancet/v2/slice"
+	"github.com/samber/lo"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -21,7 +21,7 @@ var fileMap = map[string][]string{
 
 func File(path string) []string {
 	files := TreeFiles(path)
-	c := slice.Map(files, func(_ int, f fs.FileInfo) string {
+	c := lo.Map(files, func(f fs.FileInfo, _ int) string {
 		return f.Name()
 	})
 
@@ -51,7 +51,7 @@ func readFiles(path string) map[string][]fs.FileInfo {
 		split := strings.Split(name, ".")
 		s := split[len(split)-1]
 		for i2, i3 := range fileMap {
-			if slice.Contain(i3, s) {
+			if lo.Contains(i3, s) {
 				//fmt.Println(name, "是个", i2)
 				infos, ok := m[i2]
 				if !ok {
