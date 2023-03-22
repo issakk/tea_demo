@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
-	"strings"
+	"path/filepath"
 )
 
 var fileMap = map[string][]string{
@@ -48,10 +48,11 @@ func readFiles(path string) map[string][]fs.FileInfo {
 		if i.IsDir() {
 			continue
 		}
-		split := strings.Split(name, ".")
-		s := split[len(split)-1]
+		ext := filepath.Ext(name)
+		// 去掉扩展名前面的点号
+		ext = ext[1:]
 		for i2, i3 := range fileMap {
-			if lo.Contains(i3, s) {
+			if lo.Contains(i3, ext) {
 				//fmt.Println(name, "是个", i2)
 				infos, ok := m[i2]
 				if !ok {
@@ -75,27 +76,28 @@ func fileIsExisted(filename string) bool {
 	return existed
 }
 func copyFiles(m map[string][]fs.FileInfo, path string) {
-	backupPath := path + "/" + "备份"
+	backupPath := filepath.Join(path, "备份")
 	if createDirIfNotExist(backupPath) {
 		return
 	}
 
 	for k, v := range m {
-		tempPath := path + "/" + k
+		tempPath := filepath.Join(path, k)
 		createDirIfNotExist(tempPath)
 		for _, i := range v {
-			file, _ := ioutil.ReadFile(path + "/" + i.Name())
-			err := ioutil.WriteFile(tempPath+"/"+i.Name(), file, os.ModePerm)
+			file, _ := ioutil.ReadFile(filepath.Join(path, i.Name()))
+
+			err := ioutil.WriteFile(filepath.Join(tempPath, i.Name()), file, os.ModePerm)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			err = ioutil.WriteFile(backupPath+"/"+i.Name(), file, os.ModePerm)
+			err = ioutil.WriteFile(filepath.Join(backupPath, i.Name()), file, os.ModePerm)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			err = os.Remove(path + "/" + i.Name())
+			err = os.Remove(filepath.Join(path, i.Name()))
 			if err != nil {
 				fmt.Println(err)
 				return
