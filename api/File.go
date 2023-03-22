@@ -10,13 +10,13 @@ import (
 )
 
 var fileMap = map[string][]string{
-	"图片":    {"png", "jpg", "jpeg", "gif"},
-	"电子书":   {"pdf", "mobi", "azw3", "epub"},
-	"文档资料":  {"txt", "md", "doc", "docx", "xlsx", "csv", "ppt", "pptx"},
-	"压缩包":   {"zip", "rar", "7z"},
-	"音频":    {"mp3", "wmv", "m4a", "flac"},
-	"视频":    {"mp4", "mkv", "avi"},
-	"exe程序": {"exe"},
+	"图片":    {"png", "jpg", "jpeg", "gif", "bmp", "tiff", "svg", "ico"},
+	"电子书":   {"pdf", "mobi", "azw3", "epub", "djvu", "cbz", "cbr"},
+	"文档资料":  {"txt", "md", "doc", "docx", "xlsx", "csv", "ppt", "pptx", "rtf", "odt", "ods", "odp"},
+	"压缩包":   {"zip", "rar", "7z", "tar", "gz", "bz2", "xz"},
+	"音频":    {"mp3", "wmv", "m4a", "flac", "wav", "ogg", "aac", "m4b"},
+	"视频":    {"mp4", "mkv", "mov", "flv", "wmv", "rmvb"},
+	"exe程序": {"exe", "sh", "bat", "py", "jar", "app", "dmg", "msi", "apk", "ipa"},
 }
 
 func File(path string) []string {
